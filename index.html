@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anagramas – guardar y combinar</title>
+<title>Anagramas – guardar y combinar (fix)</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
@@ -31,7 +31,7 @@
   .progress{height:10px;background:#0b1118;border:1px solid var(--grid);border-radius:999px;overflow:hidden;margin-top:10px}
   .bar{height:100%;background:var(--accent);width:0%}
 
-  /* Editor con overlay de resaltado */
+  /* Overlay solo para el editor (no para el nombre base) */
   .editor-wrap{position:relative}
   .highlight, .editor{
     font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
@@ -61,7 +61,8 @@
 
   <!-- NOMBRE BASE -->
   <div class="section">
-    <textarea id="base" rows="2" placeholder="Escribe aquí tu nombre o frase base..." class="highlight" style="position:static;color:#e6eef7;background:var(--tile)"></textarea>
+    <textarea id="base" rows="2" placeholder="Escribe aquí tu nombre o frase base..." style="width:100%;color:#e6eef7;background:var(--tile);border:1px solid var(--grid);border-radius:10px;padding:12px;font-size:15px;"></textarea>
+
     <div class="letters-block">
       <div id="vocales" class="letter-group"></div>
       <div id="consonantes" class="letter-group"></div>
@@ -100,7 +101,6 @@
 </div>
 
 <script>
-/* Utilidades base */
 const vowels = new Set(['a','e','i','o','u']);
 const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 const baseEl = document.getElementById('base');
@@ -115,10 +115,9 @@ const composer = document.getElementById('composer');
 
 function normalize(str){return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/g,'n');}
 function lettersOnly(str){return normalize(str).replace(/[^a-z]/g,'');}
-function countMap(str){const m={};for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;return m;}
+function countMap(str){const m={};for(const ch of lettersOnly(str))m[ch]=(m[ch]||0)+1;return m;}
 
-/* Render de grupos (vocales arriba / consonantes abajo) restando lo usado */
-function renderGroups(baseCounts, phraseCounts){
+function renderGroups(baseCounts,phraseCounts){
   const remaining={};
   for(const [ch,need] of Object.entries(baseCounts)){
     const used=Math.min(need,phraseCounts[ch]||0);
@@ -133,7 +132,6 @@ function renderGroups(baseCounts, phraseCounts){
   consonantesEl.innerHTML=cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
 }
 
-/* Resaltado en vivo del editor y estado */
 function renderHighlight(){
   const baseCounts=countMap(baseEl.value);
   const phraseCounts=countMap(editor.value);
