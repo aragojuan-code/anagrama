@@ -3,18 +3,29 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anagramas – juego con puntuación</title>
+<title>Laboratorio de Anagramas</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
     --grid:rgba(230,238,247,.12); --accent:#6ab0ff;
     --ok:#2ecc71; --warn:#ffb74d; --bad:#ff6b6b; --neutral:#90a4b6;
   }
+  /* Evita desbordes en móvil */
+  *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:#e6eef7;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
-  .wrap{max-width:980px;margin:0 auto;padding:18px}
-  h1{font-size:20px;margin:0 0 10px}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  h1{font-size:22px;margin:0 0 10px; line-height:1.2}
+
+  /* Topbar con puntos/tiempo/letras */
+  .topbar{position:sticky; top:0; z-index:5; background:linear-gradient(180deg, rgba(15,20,27,.95), rgba(15,20,27,.95));
+          backdrop-filter:saturate(120%) blur(4px); border-bottom:1px solid var(--grid); padding:10px 12px; margin:0 -16px 12px}
+  .topbar-inner{max-width:980px;margin:0 auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .scoreboard{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{border:1px solid var(--grid);background:var(--tile);padding:6px 10px;border-radius:999px; font-size:14px}
+  .big{font-size:16px}
+
   .section{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:14px;margin-top:14px}
-  .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+  .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:15px}
   .btn:hover{border-color:var(--accent)}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
 
@@ -34,13 +45,14 @@
   /* Overlay del editor */
   .editor-wrap{position:relative}
   .highlight, .editor{
+    display:block; width:100%; max-width:100%;
     font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    white-space:pre-wrap; word-break:break-word;
+    white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word;
     padding:12px; border-radius:10px; border:1px solid var(--grid);
-    background:var(--tile); min-height:110px;
+    background:var(--tile); min-height:120px;
   }
   .highlight{color:transparent; pointer-events:none}
-  .editor{position:absolute;inset:0;background:transparent;color:transparent;caret-color:#e6eef7;outline:none;resize:vertical;}
+  .editor{position:absolute; inset:0; background:transparent; color:transparent; caret-color:#e6eef7; outline:none; resize:vertical}
   .hl-ok{color:#9be7b0}
   .hl-warn{color:#ffd79a}
   .hl-bad{color:#ff9a9a}
@@ -54,72 +66,84 @@
   .iconbtn:hover{border-color:var(--accent)}
   textarea.small{min-height:70px}
 
-  /* Marcadores */
-  .scoreboard{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  .pill{border:1px solid var(--grid);background:var(--tile);padding:6px 10px;border-radius:999px}
-  .big{font-size:18px}
+  /* Inputs de texto generales */
+  textarea, input[type="text"]{
+    display:block; width:100%; max-width:100%;
+    color:#e6eef7; background:var(--tile); border:1px solid var(--grid); border-radius:10px; padding:12px; font-size:15px
+  }
+
+  /* Responsive */
+  @media (max-width: 600px){
+    .wrap{padding:12px}
+    h1{font-size:20px}
+    .pill{font-size:13px}
+    .btn{flex:1}
+    .letters-block .letter-group{font-size:20px}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Anagramas – juego con puntuación</h1>
+  <div class="wrap">
+    <h1>Laboratorio de Anagramas</h1>
 
-  <!-- NOMBRE BASE -->
-  <div class="section">
-    <textarea id="base" rows="2" placeholder="Escribe aquí tu nombre o frase base..." style="width:100%;color:#e6eef7;background:var(--tile);border:1px solid var(--grid);border-radius:10px;padding:12px;font-size:15px;"></textarea>
-    <div class="letters-block">
-      <div id="vocales" class="letter-group"></div>
-      <div id="consonantes" class="letter-group"></div>
+    <!-- TOPBAR: puntos / tiempo / letras -->
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="scoreboard">
+          <span class="pill big">⭐ Puntos: <span id="score">0</span></span>
+          <span class="pill">⏱ <span id="timeLeft">60</span>s</span>
+          <span class="pill">📏 Letras usadas: <span id="lettersUsed">0</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOMBRE BASE -->
+    <div class="section">
+      <textarea id="base" rows="2" placeholder="Escribe aquí tu nombre o frase base..."></textarea>
+      <div class="letters-block">
+        <div id="vocales" class="letter-group"></div>
+        <div id="consonantes" class="letter-group"></div>
+      </div>
+    </div>
+
+    <!-- EDITOR Y ACCIONES -->
+    <div class="section">
+      <div class="editor-wrap">
+        <div id="highlight" class="highlight"></div>
+        <textarea id="editor" class="editor" placeholder="Escribe tu frase o anagrama candidato..."></textarea>
+      </div>
+      <div class="row">
+        <button class="btn" id="startBtn">Jugar 60s</button>
+        <button class="btn" id="resetBtn">Reiniciar</button>
+        <button class="btn" id="saveBtn">Guardar</button>
+      </div>
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div class="chips" id="status"></div>
+    </div>
+
+    <!-- FRASES GUARDADAS -->
+    <div class="section">
+      <strong>Frases guardadas</strong>
+      <div id="saved" class="saved-list"></div>
+    </div>
+
+    <!-- COMPOSICIÓN -->
+    <div class="section">
+      <strong>Composición</strong>
+      <textarea id="composer" class="highlight small" style="position:static;color:#e6eef7;background:var(--tile)" placeholder="Aquí puedes combinar frases guardadas…"></textarea>
+      <div class="row">
+        <button class="btn" id="toEditor">Pasar al editor</button>
+        <button class="btn" id="copyComp">Copiar</button>
+        <button class="btn" id="clearComp">Limpiar</button>
+      </div>
     </div>
   </div>
-
-  <!-- CONTROLES DE JUEGO -->
-  <div class="section">
-    <div class="scoreboard">
-      <span class="pill">⏱ <span id="timeLeft">60</span>s</span>
-      <span class="pill big">⭐ Puntos: <span id="score">0</span></span>
-      <span class="pill">📏 Letras usadas: <span id="lettersUsed">0</span></span>
-      <button class="btn" id="startBtn">Jugar 60s</button>
-      <button class="btn" id="resetBtn">Reiniciar</button>
-    </div>
-  </div>
-
-  <!-- EDITOR Y GUARDAR -->
-  <div class="section">
-    <div class="editor-wrap">
-      <div id="highlight" class="highlight"></div>
-      <textarea id="editor" class="editor" placeholder="Escribe tu frase o anagrama candidato..."></textarea>
-    </div>
-    <div class="row">
-      <button class="btn" id="saveBtn">Guardar</button>
-    </div>
-    <div class="progress"><div id="bar" class="bar"></div></div>
-    <div class="chips" id="status"></div>
-  </div>
-
-  <!-- FRASES GUARDADAS -->
-  <div class="section">
-    <strong>Frases guardadas</strong>
-    <div id="saved" class="saved-list"></div>
-  </div>
-
-  <!-- COMPOSICIÓN -->
-  <div class="section">
-    <strong>Composición</strong>
-    <textarea id="composer" class="highlight small" style="position:static;color:#e6eef7;background:var(--tile)" placeholder="Aquí puedes combinar frases guardadas…"></textarea>
-    <div class="row">
-      <button class="btn" id="toEditor">Pasar al editor</button>
-      <button class="btn" id="copyComp">Copiar</button>
-      <button class="btn" id="clearComp">Limpiar</button>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ======= Config ======= */
-const ROUND_SECONDS = 60;       // duración de la ronda
-const TIER_BLOCK = 3;           // cada 3 letras sube el valor
-const BONUS_PERFECT = 25;       // bonus por anagrama perfecto en una sola frase
+const ROUND_SECONDS = 60;
+const TIER_BLOCK = 3;
+const BONUS_PERFECT = 25;
 
 /* ======= Utilidades ======= */
 const vowels = new Set(['a','e','i','o','u']);
@@ -162,14 +186,13 @@ function renderGroups(baseCounts,phraseCounts){
   consonantesEl.innerHTML=cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
 }
 
-/* Puntuación de la frase actual (tier por posición de letra válida/no válida) */
+/* Puntuación de la frase actual */
 function computeScoreAndMarkup(){
   const baseCounts = countMap(baseEl.value);
   const txt = editor.value;
-  const usedPerLetter = {};        // consumo por letra para determinar "de más"
-  let lettersSeen = 0;             // solo letras A-Z vistas (para calcular tier)
+  const usedPerLetter = {};
+  let lettersSeen = 0;
   let score = 0;
-
   let out = '';
 
   for(const raw of txt){
@@ -177,29 +200,25 @@ function computeScoreAndMarkup(){
     const isLetter = /^[a-z]$/.test(n);
     if(!isLetter){ out += `<span class="hl-neutral">${esc(raw)}</span>`; continue; }
 
-    const tier = Math.floor(lettersSeen / TIER_BLOCK) + 1; // 1..∞
+    const tier = Math.floor(lettersSeen / TIER_BLOCK) + 1;
     lettersSeen++;
 
     const need = baseCounts[n] || 0;
     const have = usedPerLetter[n] || 0;
 
     if(need === 0){
-      // no existe en base → penaliza
       score -= tier;
       out += `<span class="hl-bad">${esc(raw)}</span>`;
     }else if(have < need){
-      // dentro del cupo
       usedPerLetter[n] = have + 1;
       score += tier;
       out += `<span class="hl-ok">${esc(raw)}</span>`;
     }else{
-      // repetida de más
       score -= tier;
       out += `<span class="hl-warn">${esc(raw)}</span>`;
     }
   }
 
-  // estado/bonus
   const phraseCounts = countMap(txt);
   const totalBase = Object.values(baseCounts).reduce((a,b)=>a+b,0);
   const missing=[], over=[], notIn=[];
@@ -219,7 +238,6 @@ function computeScoreAndMarkup(){
   const perfect = !missing.length && !over.length && !notIn.length && lettersOnly(txt).length===totalBase;
   if(perfect && lettersOnly(txt).length>0) score += BONUS_PERFECT;
 
-  // UI
   highlight.innerHTML = out;
   const pct = totalBase ? Math.round(usedCount/totalBase*100) : 0;
   bar.style.width = pct+'%';
@@ -239,7 +257,7 @@ function renderAll(){
   const phraseCounts = countMap(editor.value);
   renderGroups(baseCounts, phraseCounts);
   const score = computeScoreAndMarkup();
-  if(playing) scoreEl.textContent = score; else scoreEl.textContent = score;
+  scoreEl.textContent = score;
 }
 
 /* Guardados */
@@ -288,7 +306,6 @@ function endGame(){
   playing = false;
   clearInterval(timer); timer = null;
   baseEl.disabled = false;
-  // Deja el texto y la puntuación visibles; puedes Guardar si quieres.
 }
 function resetGame(){
   playing = false;
@@ -303,7 +320,7 @@ function resetGame(){
 
 /* Eventos */
 baseEl.addEventListener('input', renderAll);
-editor.addEventListener('input', ()=>{ if(playing) renderAll(); else renderAll(); });
+editor.addEventListener('input', renderAll);
 document.getElementById('saveBtn').addEventListener('click', ()=>{
   const text = editor.value.trim(); if(!text) return;
   const arr = loadSaved(); arr.unshift({ id: Date.now(), text }); saveSaved(arr); renderSaved();
