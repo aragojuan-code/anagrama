@@ -3,50 +3,35 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anagramas – versión limpia</title>
+<title>Anagramas – guardar y combinar</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
     --grid:rgba(230,238,247,.12); --accent:#6ab0ff;
     --ok:#2ecc71; --warn:#ffb74d; --bad:#ff6b6b; --neutral:#90a4b6;
   }
-  html,body{
-    height:100%; margin:0;
-    background:var(--bg); color:#e6eef7;
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef7;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
   .wrap{max-width:980px;margin:0 auto;padding:18px}
   h1{font-size:20px;margin:0 0 10px}
-  .section{
-    background:var(--panel); border:1px solid var(--grid);
-    border-radius:12px; padding:14px; margin-top:14px;
-  }
-  .letter-group{
-    display:flex; justify-content:center; flex-wrap:wrap; gap:6px;
-    font-family:monospace; font-size:22px; margin:4px 0;
-  }
+  .section{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:14px;margin-top:14px}
+  .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+  .btn:hover{border-color:var(--accent)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+
+  .letter-group{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;font-family:monospace;font-size:22px;margin:4px 0}
   .vocal{color:#6ab0ff}
   .cons{color:#ffb74d}
   .letters-block{display:flex;flex-direction:column;align-items:center;margin-top:8px}
 
-  .chips{
-    display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:13px;
-  }
-  .chip{
-    background:var(--tile); border:1px solid var(--grid);
-    padding:6px 10px; border-radius:999px;
-  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:13px}
+  .chip{background:var(--tile);border:1px solid var(--grid);padding:6px 10px;border-radius:999px}
   .ok{color:#bff4d2;border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.12)}
   .warn{color:#ffd9a6;border-color:rgba(255,183,77,.35);background:rgba(255,183,77,.12)}
   .bad{color:#ffc7c7;border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12)}
-
-  .progress{
-    height:10px;background:#0b1118;border:1px solid var(--grid);
-    border-radius:999px;overflow:hidden;margin-top:10px;
-  }
+  .progress{height:10px;background:#0b1118;border:1px solid var(--grid);border-radius:999px;overflow:hidden;margin-top:10px}
   .bar{height:100%;background:var(--accent);width:0%}
 
-  /* Overlay del editor */
+  /* Editor con overlay de resaltado */
   .editor-wrap{position:relative}
   .highlight, .editor{
     font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
@@ -55,42 +40,69 @@
     background:var(--tile); min-height:110px;
   }
   .highlight{color:transparent; pointer-events:none}
-  .editor{
-    position:absolute; inset:0; background:transparent; color:transparent;
-    caret-color:#e6eef7; outline:none; resize:vertical;
-  }
+  .editor{position:absolute;inset:0;background:transparent;color:transparent;caret-color:#e6eef7;outline:none;resize:vertical;}
   .hl-ok{color:#9be7b0}
   .hl-warn{color:#ffd79a}
   .hl-bad{color:#ff9a9a}
   .hl-neutral{color:#7f93a6}
+
+  /* Guardados */
+  .saved-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .saved-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--tile);border:1px solid var(--grid);border-radius:10px;padding:8px 10px}
+  .saved-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .iconbtn{background:transparent;border:1px solid var(--grid);color:#e6eef7;border-radius:8px;padding:6px 8px;cursor:pointer}
+  .iconbtn:hover{border-color:var(--accent)}
+  textarea.small{min-height:70px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Anagramas – versión limpia</h1>
+  <h1>Anagramas – guardar y combinar</h1>
 
+  <!-- NOMBRE BASE -->
   <div class="section">
     <textarea id="base" rows="2" placeholder="Escribe aquí tu nombre o frase base..." class="highlight" style="position:static;color:#e6eef7;background:var(--tile)"></textarea>
-
     <div class="letters-block">
       <div id="vocales" class="letter-group"></div>
       <div id="consonantes" class="letter-group"></div>
     </div>
   </div>
 
+  <!-- EDITOR Y GUARDAR -->
   <div class="section">
     <div class="editor-wrap">
       <div id="highlight" class="highlight"></div>
       <textarea id="editor" class="editor" placeholder="Escribe tu frase o anagrama candidato..."></textarea>
     </div>
-
+    <div class="row">
+      <button class="btn" id="saveBtn">Guardar</button>
+    </div>
     <div class="progress"><div id="bar" class="bar"></div></div>
     <div class="chips" id="status"></div>
+  </div>
+
+  <!-- FRASES GUARDADAS -->
+  <div class="section">
+    <strong>Frases guardadas</strong>
+    <div id="saved" class="saved-list"></div>
+  </div>
+
+  <!-- COMPOSICIÓN -->
+  <div class="section">
+    <strong>Composición</strong>
+    <textarea id="composer" class="highlight small" style="position:static;color:#e6eef7;background:var(--tile)" placeholder="Aquí puedes combinar frases guardadas…"></textarea>
+    <div class="row">
+      <button class="btn" id="toEditor">Pasar al editor</button>
+      <button class="btn" id="copyComp">Copiar</button>
+      <button class="btn" id="clearComp">Limpiar</button>
+    </div>
   </div>
 </div>
 
 <script>
+/* Utilidades base */
 const vowels = new Set(['a','e','i','o','u']);
+const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 const baseEl = document.getElementById('base');
 const vocalesEl = document.getElementById('vocales');
 const consonantesEl = document.getElementById('consonantes');
@@ -98,13 +110,15 @@ const editor = document.getElementById('editor');
 const highlight = document.getElementById('highlight');
 const bar = document.getElementById('bar');
 const status = document.getElementById('status');
+const savedEl = document.getElementById('saved');
+const composer = document.getElementById('composer');
 
-const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 function normalize(str){return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/g,'n');}
 function lettersOnly(str){return normalize(str).replace(/[^a-z]/g,'');}
-function countMap(str){const m={};for(const ch of lettersOnly(str))m[ch]=(m[ch]||0)+1;return m;}
+function countMap(str){const m={};for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;return m;}
 
-function renderGroups(baseCounts,phraseCounts){
+/* Render de grupos (vocales arriba / consonantes abajo) restando lo usado */
+function renderGroups(baseCounts, phraseCounts){
   const remaining={};
   for(const [ch,need] of Object.entries(baseCounts)){
     const used=Math.min(need,phraseCounts[ch]||0);
@@ -119,6 +133,7 @@ function renderGroups(baseCounts,phraseCounts){
   consonantesEl.innerHTML=cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
 }
 
+/* Resaltado en vivo del editor y estado */
 function renderHighlight(){
   const baseCounts=countMap(baseEl.value);
   const phraseCounts=countMap(editor.value);
@@ -155,8 +170,60 @@ function renderHighlight(){
   renderGroups(baseCounts,phraseCounts);
 }
 
+/* Guardados en localStorage */
+const STORAGE_KEY = 'anag_guardados_v1';
+function loadSaved(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch{ return []; } }
+function saveSaved(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+function renderSaved(){
+  const arr = loadSaved();
+  savedEl.innerHTML = '';
+  if(arr.length===0){ savedEl.innerHTML = `<div style="opacity:.6">No hay frases guardadas.</div>`; return; }
+  arr.forEach(item=>{
+    const div=document.createElement('div'); div.className='saved-item';
+    const txt=document.createElement('div'); txt.className='saved-text'; txt.textContent=item.text;
+    const box=document.createElement('div'); box.className='row'; box.style.margin='0';
+    const add=document.createElement('button'); add.className='iconbtn'; add.title='Añadir a composición'; add.textContent='➕';
+    const edit=document.createElement('button'); edit.className='iconbtn'; edit.title='Editar en el editor'; edit.textContent='✎';
+    const del=document.createElement('button'); del.className='iconbtn'; del.title='Borrar'; del.textContent='🗑';
+    add.onclick=()=>{ composer.value = (composer.value ? composer.value + ' ' : '') + item.text; };
+    edit.onclick=()=>{ editor.value=item.text; renderHighlight(); window.scrollTo({top:0,behavior:'smooth'}); };
+    del.onclick=()=>{
+      const next = loadSaved().filter(x=>x.id!==item.id);
+      saveSaved(next); renderSaved();
+    };
+    box.append(add,edit,del);
+    div.append(txt,box);
+    savedEl.appendChild(div);
+  });
+}
+
+/* Eventos principales */
 baseEl.addEventListener('input',renderHighlight);
 editor.addEventListener('input',renderHighlight);
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  const text = editor.value.trim();
+  if(!text) return;
+  const arr = loadSaved();
+  arr.unshift({ id: Date.now(), text });
+  saveSaved(arr);
+  renderSaved();
+});
+
+/* Composición */
+document.getElementById('toEditor').addEventListener('click', ()=>{
+  editor.value = composer.value;
+  renderHighlight();
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+document.getElementById('copyComp').addEventListener('click', async ()=>{
+  try{ await navigator.clipboard.writeText(composer.value); }catch(e){}
+});
+document.getElementById('clearComp').addEventListener('click', ()=>{ composer.value=''; });
+
+/* Inicial */
+renderSaved();
 renderHighlight();
 </script>
 </body>
