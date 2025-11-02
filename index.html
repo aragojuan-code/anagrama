@@ -3,236 +3,201 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Comprobador de Anagramas — Juan</title>
+<title>Anagramas con resaltado en vivo</title>
 <style>
   :root{
-    --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#101722;
-    --accent:#6ab0ff; --ok:#2ecc71; --warn:#ffb74d; --bad:#ff6b6b; --grid:rgba(230,238,247,.12);
-    --radius:14px; --gap:12px;
+    --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
+    --grid:rgba(230,238,247,.12); --accent:#6ab0ff;
+    --ok:#2ecc71; --warn:#ffb74d; --bad:#ff6b6b; --neutral:#90a4b6;
   }
   html,body{height:100%;margin:0;background:var(--bg);color:#e6eef7;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
-  .wrap{max-width:960px;margin:0 auto;padding:20px}
-  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
-  h1{font-size:20px;margin:0}
-  .hint{color:var(--muted);font-size:13px}
-  .grid{display:grid;grid-template-columns:1fr;gap:var(--gap)}
-  @media (min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
-  .card{background:var(--panel);border:1px solid var(--grid);border-radius:var(--radius);padding:16px}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-  textarea, input[type="text"]{
-    width:100%;background:var(--tile);color:#e6eef7;border:1px solid var(--grid);
-    border-radius:10px;padding:12px 12px;font-size:16px;outline:none;
-  }
-  textarea:focus, input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,176,255,.15)}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .btn{
-    background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:10px 12px;border-radius:10px;
-    cursor:pointer;font-size:14px
-  }
+  .wrap{max-width:980px;margin:0 auto;padding:18px}
+  h1{font-size:20px;margin:0 0 10px}
+  .section{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:14px;margin-top:14px}
+  .label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   .btn:hover{border-color:var(--accent)}
-  .status{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:14px}
-  .badge{padding:3px 8px;border-radius:999px;font-size:12px;border:1px solid var(--grid);background:var(--tile);color:#e6eef7}
-  .ok{border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.12);color:#bff4d2}
-  .warn{border-color:rgba(255,183,77,.35);background:rgba(255,183,77,.12);color:#ffd9a6}
-  .bad{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12);color:#ffc7c7}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-  .chip{background:var(--tile);border:1px solid var(--grid);padding:6px 10px;border-radius:999px;font-size:13px}
-  .chip b{font-variant-numeric:tabular-nums}
-  .section-title{font-size:14px;color:var(--muted);margin-top:6px}
+  .letters{display:flex;flex-wrap:wrap;gap:6px;font-family:monospace;font-size:20px;margin-top:6px}
+  .vocal{color:#6ab0ff}
+  .cons{color:#ffb74d}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:13px}
+  .chip{background:var(--tile);border:1px solid var(--grid);padding:6px 10px;border-radius:999px}
+  .ok{color:#bff4d2;border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.12)}
+  .warn{color:#ffd9a6;border-color:rgba(255,183,77,.35);background:rgba(255,183,77,.12)}
+  .bad{color:#ffc7c7;border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12)}
   .progress{height:10px;background:#0b1118;border:1px solid var(--grid);border-radius:999px;overflow:hidden;margin-top:10px}
   .bar{height:100%;background:var(--accent);width:0%}
-  .columns{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
-  @media (min-width:700px){ .columns{grid-template-columns:repeat(3,1fr)}}
-  code.small{font-size:12px;color:var(--muted)}
-  .foot{margin-top:8px;color:var(--muted);font-size:12px}
+
+  /* Editor con overlay */
+  .editor-wrap{position:relative}
+  .highlight, .editor{
+    font: 16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    white-space:pre-wrap; word-break:break-word;
+    padding:12px; border-radius:10px; border:1px solid var(--grid);
+    background:var(--tile);
+    min-height:110px;
+  }
+  .highlight{color:transparent; pointer-events:none}
+  .editor{
+    position:absolute; inset:0;
+    background:transparent; color:transparent; caret-color:#e6eef7;
+    outline:none; resize:vertical;
+  }
+  .hl-ok{color:#9be7b0}     /* verde claro */
+  .hl-warn{color:#ffd79a}   /* naranja claro */
+  .hl-bad{color:#ff9a9a}    /* rojo claro */
+  .hl-neutral{color:#7f93a6}/* gris para espacios/signos */
+  .mono{font-family:monospace}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>Comprobador de anagramas</h1>
-    <div class="hint">Escribe tu nombre base y prueba frases hasta lograr el anagrama perfecto.</div>
-  </header>
+  <h1>Anagramas con resaltado en vivo</h1>
 
-  <div class="grid">
-    <div class="card">
-      <label for="base">Nombre base (se usarán exactamente estas letras)</label>
-      <textarea id="base" rows="3" placeholder="Ej.: JUAN ARAGO OLAGUIBEL">JUAN ARAGO OLAGUIBEL</textarea>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" id="prefillJuan">Cargar ejemplo de Juan</button>
-        <button class="btn" id="clearPhrase">Limpiar frase</button>
-      </div>
-      <div class="section-title">Normalización: se ignoran espacios y signos, se quitan tildes (á→a, ñ→n), todo en minúsculas.</div>
-      <div class="section-title">Letras del nombre (normalizadas):</div>
-      <div id="baseLetters" class="chips"></div>
-      <div class="section-title">Resumen</div>
-      <div class="status">
-        Cobertura: <span id="coveragePct" class="badge">0%</span>
-        <span id="statusBadge" class="badge warn">Anagrama incompleto</span>
-      </div>
-      <div class="progress"><div id="bar" class="bar"></div></div>
+  <div class="section">
+    <div class="label">Nombre base (se usan exactamente estas letras)</div>
+    <textarea id="base" rows="2" class="highlight" style="position:static;color:#e6eef7;background:var(--tile)"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="prefill">Cargar ejemplo (JUAN ARAGO OLAGUIBEL)</button>
     </div>
 
-    <div class="card">
-      <label for="phrase">Frase candidata (tu propuesta)</label>
-      <textarea id="phrase" rows="3" placeholder="Escribe aquí tu frase… (p. ej., LUNA JAGUAR)"></textarea>
+    <div class="label" style="margin-top:10px">Letras disponibles (vocales ｜ consonantes):</div>
+    <div class="letters" id="lettersView"></div>
+  </div>
 
-      <div class="columns">
-        <div>
-          <div class="section-title">✅ Correctas (hasta el límite permitido)</div>
-          <div id="okList" class="chips"></div>
-        </div>
-        <div>
-          <div class="section-title">🧩 Faltan (aún por usar)</div>
-          <div id="missingList" class="chips"></div>
-        </div>
-        <div>
-          <div class="section-title">⚠️ De más (sobran)</div>
-          <div id="overList" class="chips"></div>
-        </div>
-      </div>
-
-      <div class="section-title">🚫 No existen en el nombre base</div>
-      <div id="notInList" class="chips"></div>
-
-      <div class="status" id="finalStatus"></div>
-      <div class="foot">
-        <code class="small">Consejo:</code> Si “De más” y “No existen” están vacíos y “Faltan” también está vacío, ¡tienes un <b>anagrama perfecto</b>!
-      </div>
+  <div class="section">
+    <div class="label">Frase candidata (escribe aquí abajo; verás el color en vivo)</div>
+    <div class="editor-wrap">
+      <div id="highlight" class="highlight"></div>
+      <textarea id="editor" class="editor" placeholder="Escribe tu frase… (p. ej., LUNA JAGUAR)"></textarea>
     </div>
+
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="chips" id="status"></div>
   </div>
 </div>
 
 <script>
-  // Normaliza: minúsculas, sin tildes, solo a-z
-  function normalize(str){
-    return str
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quita diacríticos
-      .replace(/ñ/g,'n')
-      .replace(/[^a-z]/g,''); // solo letras
-  }
+  const vowels = new Set(['a','e','i','o','u']);
+  const baseEl = document.getElementById('base');
+  const prefillBtn = document.getElementById('prefill');
+  const lettersView = document.getElementById('lettersView');
 
-  function countLetters(str){
-    const m = new Map();
-    for(const ch of normalize(str)){
-      m.set(ch, (m.get(ch)||0) + 1);
-    }
+  const editor = document.getElementById('editor');
+  const highlight = document.getElementById('highlight');
+
+  const bar = document.getElementById('bar');
+  const status = document.getElementById('status');
+
+  function normalize(str){
+    return str.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/ñ/g,'n');
+  }
+  function lettersOnly(str){ return normalize(str).replace(/[^a-z]/g,''); }
+  function countMap(str){
+    const m = {};
+    for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;
     return m;
   }
 
-  function mapToObj(m){
-    const o = {};
-    [...m.keys()].sort().forEach(k=>o[k]=m.get(k));
-    return o;
-  }
-
-  function makeChips(container, obj, cls=""){
-    container.innerHTML = "";
-    const keys = Object.keys(obj);
-    if(keys.length===0){ container.innerHTML = '<span class="chip" style="opacity:.6">—</span>'; return; }
-    keys.forEach(k=>{
-      const v = obj[k];
-      const span = document.createElement('span');
-      span.className = 'chip ' + cls;
-      span.innerHTML = `<b>${k}</b> × ${v}`;
-      container.appendChild(span);
-    });
-  }
-
-  const baseEl = document.getElementById('base');
-  const phraseEl = document.getElementById('phrase');
-  const baseLettersEl = document.getElementById('baseLetters');
-  const okListEl = document.getElementById('okList');
-  const missingListEl = document.getElementById('missingList');
-  const overListEl = document.getElementById('overList');
-  const notInListEl = document.getElementById('notInList');
-  const statusBadge = document.getElementById('statusBadge');
-  const coveragePct = document.getElementById('coveragePct');
-  const bar = document.getElementById('bar');
-  const finalStatus = document.getElementById('finalStatus');
-
-  function recalc(){
-    const baseCounts = countLetters(baseEl.value);
-    const phraseCounts = countLetters(phraseEl.value);
-
-    // Mostrar letras del nombre base
-    makeChips(baseLettersEl, mapToObj(baseCounts));
-
-    // Totales para cobertura
-    const totalBase = [...baseCounts.values()].reduce((a,b)=>a+b,0);
-    let usedFromBase = 0;
-
-    // Missing / OK
-    const missing = {};
-    const ok = {};
-    for(const [ch, need] of baseCounts.entries()){
-      const have = phraseCounts.get(ch) || 0;
-      if(have === 0){
-        missing[ch] = need;
-      } else if(have < need){
-        ok[ch] = have; // correctas hasta ahora
-        missing[ch] = need - have;
-        usedFromBase += have;
-      } else { // have >= need
-        ok[ch] = need;
-        usedFromBase += need;
+  function updateLettersView(){
+    const clean = lettersOnly(baseEl.value);
+    const sorted = clean.split('').sort();
+    const voc = sorted.filter(c=>vowels.has(c));
+    const cons = sorted.filter(c=>!vowels.has(c));
+    lettersView.innerHTML = '';
+    function addRun(chars, cls){
+      for(const ch of chars){
+        const s=document.createElement('span');
+        s.className=cls; s.textContent=ch.toUpperCase();
+        lettersView.appendChild(s);
       }
     }
+    addRun(voc,'vocal');
+    const sep=document.createElement('span'); sep.textContent='｜'; sep.style.opacity=.4; sep.style.margin='0 8px';
+    lettersView.appendChild(sep);
+    addRun(cons,'cons');
+  }
 
-    // Over (de más, incluyendo letras que superan el límite permitido)
-    const over = {};
-    const notIn = {};
-    for(const [ch, have] of phraseCounts.entries()){
-      const need = baseCounts.get(ch) || 0;
+  function renderHighlight(){
+    const baseCounts = countMap(baseEl.value);
+    const used = {}; // cuántas llevamos consumidas por letra
+    const txt = editor.value;
+    let out = '';
+
+    // Construye spans por carácter
+    for(const rawCh of txt){
+      const norm = normalize(rawCh);
+      const isLetter = /^[a-z]$/.test(norm);
+      if(!isLetter){
+        // mostrar tal cual pero en gris
+        const esc = rawCh === '<' ? '&lt;' : rawCh === '>' ? '&gt;' : rawCh === '&' ? '&amp;' : rawCh;
+        out += `<span class="hl-neutral">${esc}</span>`;
+        continue;
+      }
+      const need = baseCounts[norm]||0;
+      const have = used[norm]||0;
+
+      // escapar visual del char original (respetamos mayúsculas que teclees)
+      const show = rawCh === '<' ? '&lt;' : rawCh === '>' ? '&gt;' : rawCh === '&' ? '&amp;' : rawCh;
+
       if(need === 0){
-        notIn[ch] = have;
-      } else if(have > need){
-        over[ch] = have - need;
+        out += `<span class="hl-bad">${show}</span>`; // no existe en base
+      }else if(have < need){
+        used[norm] = have+1;
+        out += `<span class="hl-ok">${show}</span>`;  // válido dentro del cupo
+      }else{
+        out += `<span class="hl-warn">${show}</span>`; // repetida de más
       }
     }
+    highlight.innerHTML = out;
 
-    // Cobertura
-    const pct = totalBase ? Math.round((usedFromBase/totalBase)*100) : 0;
-    coveragePct.textContent = pct + "%";
-    bar.style.width = pct + "%";
+    // Resumen (faltan / de más / no permitidas)
+    const phraseCounts = countMap(editor.value);
+    const totalBase = Object.values(baseCounts).reduce((a,b)=>a+b,0);
+    let usedCount = 0;
+    const missing=[], over=[], notIn=[];
 
-    // Badges
-    const isPerfect = Object.keys(missing).length===0 && Object.keys(over).length===0 && Object.keys(notIn).length===0 && normalize(phraseEl.value).length === totalBase;
-    statusBadge.textContent = isPerfect ? "¡Anagrama perfecto!" : "Anagrama incompleto";
-    statusBadge.className = 'badge ' + (isPerfect ? 'ok' : 'warn');
+    // faltantes y usados
+    for(const [ch,need] of Object.entries(baseCounts)){
+      const have = phraseCounts[ch]||0;
+      if(have < need) missing.push(`${ch.toUpperCase()}×${need-have}`);
+      usedCount += Math.min(need, have);
+    }
+    // de más
+    for(const [ch,have] of Object.entries(phraseCounts)){
+      const need = baseCounts[ch]||0;
+      if(need===0) notIn.push(`${ch.toUpperCase()}×${have}`);
+      else if(have>need) over.push(`${ch.toUpperCase()}×${have-need}`);
+    }
 
-    // Listas
-    makeChips(okListEl, ok);
-    makeChips(missingListEl, missing, 'warn');
-    makeChips(overListEl, over, 'bad');
-    makeChips(notInListEl, notIn, 'bad');
+    const pct = totalBase ? Math.round((usedCount/totalBase)*100) : 0;
+    bar.style.width = pct + '%';
 
-    // Estado final
-    finalStatus.innerHTML = isPerfect
-      ? `<span class="badge ok">Todo cuadra ✔</span>`
-      : [
-          Object.keys(missing).length ? `<span class="badge warn">Faltan letras</span>` : ``,
-          Object.keys(over).length ? `<span class="badge bad">Letras repetidas de más</span>` : ``,
-          Object.keys(notIn).length ? `<span class="badge bad">Letras no permitidas</span>` : ``
-        ].filter(Boolean).join(' ');
+    status.innerHTML = '';
+    if(missing.length) status.innerHTML += `<span class="chip warn">Faltan ${missing.join(', ')}</span>`;
+    if(over.length) status.innerHTML += `<span class="chip bad">De más ${over.join(', ')}</span>`;
+    if(notIn.length) status.innerHTML += `<span class="chip bad">No permitidas ${notIn.join(', ')}</span>`;
+    if(!missing.length && !over.length && !notIn.length && lettersOnly(editor.value).length === totalBase){
+      status.innerHTML = `<span class="chip ok">¡Anagrama perfecto!</span>`;
+    }
   }
 
-  baseEl.addEventListener('input', recalc);
-  phraseEl.addEventListener('input', recalc);
+  // Eventos
+  baseEl.addEventListener('input', ()=>{ updateLettersView(); renderHighlight(); });
+  editor.addEventListener('input', renderHighlight);
 
-  document.getElementById('prefillJuan').addEventListener('click', ()=>{
-    baseEl.value = "JUAN ARAGO OLAGUIBEL";
-    recalc();
-  });
-
-  document.getElementById('clearPhrase').addEventListener('click', ()=>{
-    phraseEl.value = "";
-    recalc();
+  // Prefill
+  prefillBtn.addEventListener('click', ()=>{
+    baseEl.value = 'JUAN ARAGO OLAGUIBEL';
+    updateLettersView(); renderHighlight();
   });
 
   // Inicial
-  recalc();
+  baseEl.value = 'JUAN ARAGO OLAGUIBEL';
+  updateLettersView(); renderHighlight();
 </script>
 </body>
 </html>
