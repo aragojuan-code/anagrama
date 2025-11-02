@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Comprobador de Anagramas — Juan</title>
+<style>
+  :root{
+    --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#101722;
+    --accent:#6ab0ff; --ok:#2ecc71; --warn:#ffb74d; --bad:#ff6b6b; --grid:rgba(230,238,247,.12);
+    --radius:14px; --gap:12px;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef7;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+  .wrap{max-width:960px;margin:0 auto;padding:20px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+  h1{font-size:20px;margin:0}
+  .hint{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr;gap:var(--gap)}
+  @media (min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+  .card{background:var(--panel);border:1px solid var(--grid);border-radius:var(--radius);padding:16px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  textarea, input[type="text"]{
+    width:100%;background:var(--tile);color:#e6eef7;border:1px solid var(--grid);
+    border-radius:10px;padding:12px 12px;font-size:16px;outline:none;
+  }
+  textarea:focus, input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,176,255,.15)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{
+    background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:10px 12px;border-radius:10px;
+    cursor:pointer;font-size:14px
+  }
+  .btn:hover{border-color:var(--accent)}
+  .status{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:14px}
+  .badge{padding:3px 8px;border-radius:999px;font-size:12px;border:1px solid var(--grid);background:var(--tile);color:#e6eef7}
+  .ok{border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.12);color:#bff4d2}
+  .warn{border-color:rgba(255,183,77,.35);background:rgba(255,183,77,.12);color:#ffd9a6}
+  .bad{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12);color:#ffc7c7}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{background:var(--tile);border:1px solid var(--grid);padding:6px 10px;border-radius:999px;font-size:13px}
+  .chip b{font-variant-numeric:tabular-nums}
+  .section-title{font-size:14px;color:var(--muted);margin-top:6px}
+  .progress{height:10px;background:#0b1118;border:1px solid var(--grid);border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar{height:100%;background:var(--accent);width:0%}
+  .columns{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+  @media (min-width:700px){ .columns{grid-template-columns:repeat(3,1fr)}}
+  code.small{font-size:12px;color:var(--muted)}
+  .foot{margin-top:8px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Comprobador de anagramas</h1>
+    <div class="hint">Escribe tu nombre base y prueba frases hasta lograr el anagrama perfecto.</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <label for="base">Nombre base (se usarán exactamente estas letras)</label>
+      <textarea id="base" rows="3" placeholder="Ej.: JUAN ARAGO OLAGUIBEL">JUAN ARAGO OLAGUIBEL</textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="prefillJuan">Cargar ejemplo de Juan</button>
+        <button class="btn" id="clearPhrase">Limpiar frase</button>
+      </div>
+      <div class="section-title">Normalización: se ignoran espacios y signos, se quitan tildes (á→a, ñ→n), todo en minúsculas.</div>
+      <div class="section-title">Letras del nombre (normalizadas):</div>
+      <div id="baseLetters" class="chips"></div>
+      <div class="section-title">Resumen</div>
+      <div class="status">
+        Cobertura: <span id="coveragePct" class="badge">0%</span>
+        <span id="statusBadge" class="badge warn">Anagrama incompleto</span>
+      </div>
+      <div class="progress"><div id="bar" class="bar"></div></div>
+    </div>
+
+    <div class="card">
+      <label for="phrase">Frase candidata (tu propuesta)</label>
+      <textarea id="phrase" rows="3" placeholder="Escribe aquí tu frase… (p. ej., LUNA JAGUAR)"></textarea>
+
+      <div class="columns">
+        <div>
+          <div class="section-title">✅ Correctas (hasta el límite permitido)</div>
+          <div id="okList" class="chips"></div>
+        </div>
+        <div>
+          <div class="section-title">🧩 Faltan (aún por usar)</div>
+          <div id="missingList" class="chips"></div>
+        </div>
+        <div>
+          <div class="section-title">⚠️ De más (sobran)</div>
+          <div id="overList" class="chips"></div>
+        </div>
+      </div>
+
+      <div class="section-title">🚫 No existen en el nombre base</div>
+      <div id="notInList" class="chips"></div>
+
+      <div class="status" id="finalStatus"></div>
+      <div class="foot">
+        <code class="small">Consejo:</code> Si “De más” y “No existen” están vacíos y “Faltan” también está vacío, ¡tienes un <b>anagrama perfecto</b>!
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Normaliza: minúsculas, sin tildes, solo a-z
+  function normalize(str){
+    return str
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quita diacríticos
+      .replace(/ñ/g,'n')
+      .replace(/[^a-z]/g,''); // solo letras
+  }
+
+  function countLetters(str){
+    const m = new Map();
+    for(const ch of normalize(str)){
+      m.set(ch, (m.get(ch)||0) + 1);
+    }
+    return m;
+  }
+
+  function mapToObj(m){
+    const o = {};
+    [...m.keys()].sort().forEach(k=>o[k]=m.get(k));
+    return o;
+  }
+
+  function makeChips(container, obj, cls=""){
+    container.innerHTML = "";
+    const keys = Object.keys(obj);
+    if(keys.length===0){ container.innerHTML = '<span class="chip" style="opacity:.6">—</span>'; return; }
+    keys.forEach(k=>{
+      const v = obj[k];
+      const span = document.createElement('span');
+      span.className = 'chip ' + cls;
+      span.innerHTML = `<b>${k}</b> × ${v}`;
+      container.appendChild(span);
+    });
+  }
+
+  const baseEl = document.getElementById('base');
+  const phraseEl = document.getElementById('phrase');
+  const baseLettersEl = document.getElementById('baseLetters');
+  const okListEl = document.getElementById('okList');
+  const missingListEl = document.getElementById('missingList');
+  const overListEl = document.getElementById('overList');
+  const notInListEl = document.getElementById('notInList');
+  const statusBadge = document.getElementById('statusBadge');
+  const coveragePct = document.getElementById('coveragePct');
+  const bar = document.getElementById('bar');
+  const finalStatus = document.getElementById('finalStatus');
+
+  function recalc(){
+    const baseCounts = countLetters(baseEl.value);
+    const phraseCounts = countLetters(phraseEl.value);
+
+    // Mostrar letras del nombre base
+    makeChips(baseLettersEl, mapToObj(baseCounts));
+
+    // Totales para cobertura
+    const totalBase = [...baseCounts.values()].reduce((a,b)=>a+b,0);
+    let usedFromBase = 0;
+
+    // Missing / OK
+    const missing = {};
+    const ok = {};
+    for(const [ch, need] of baseCounts.entries()){
+      const have = phraseCounts.get(ch) || 0;
+      if(have === 0){
+        missing[ch] = need;
+      } else if(have < need){
+        ok[ch] = have; // correctas hasta ahora
+        missing[ch] = need - have;
+        usedFromBase += have;
+      } else { // have >= need
+        ok[ch] = need;
+        usedFromBase += need;
+      }
+    }
+
+    // Over (de más, incluyendo letras que superan el límite permitido)
+    const over = {};
+    const notIn = {};
+    for(const [ch, have] of phraseCounts.entries()){
+      const need = baseCounts.get(ch) || 0;
+      if(need === 0){
+        notIn[ch] = have;
+      } else if(have > need){
+        over[ch] = have - need;
+      }
+    }
+
+    // Cobertura
+    const pct = totalBase ? Math.round((usedFromBase/totalBase)*100) : 0;
+    coveragePct.textContent = pct + "%";
+    bar.style.width = pct + "%";
+
+    // Badges
+    const isPerfect = Object.keys(missing).length===0 && Object.keys(over).length===0 && Object.keys(notIn).length===0 && normalize(phraseEl.value).length === totalBase;
+    statusBadge.textContent = isPerfect ? "¡Anagrama perfecto!" : "Anagrama incompleto";
+    statusBadge.className = 'badge ' + (isPerfect ? 'ok' : 'warn');
+
+    // Listas
+    makeChips(okListEl, ok);
+    makeChips(missingListEl, missing, 'warn');
+    makeChips(overListEl, over, 'bad');
+    makeChips(notInListEl, notIn, 'bad');
+
+    // Estado final
+    finalStatus.innerHTML = isPerfect
+      ? `<span class="badge ok">Todo cuadra ✔</span>`
+      : [
+          Object.keys(missing).length ? `<span class="badge warn">Faltan letras</span>` : ``,
+          Object.keys(over).length ? `<span class="badge bad">Letras repetidas de más</span>` : ``,
+          Object.keys(notIn).length ? `<span class="badge bad">Letras no permitidas</span>` : ``
+        ].filter(Boolean).join(' ');
+  }
+
+  baseEl.addEventListener('input', recalc);
+  phraseEl.addEventListener('input', recalc);
+
+  document.getElementById('prefillJuan').addEventListener('click', ()=>{
+    baseEl.value = "JUAN ARAGO OLAGUIBEL";
+    recalc();
+  });
+
+  document.getElementById('clearPhrase').addEventListener('click', ()=>{
+    phraseEl.value = "";
+    recalc();
+  });
+
+  // Inicial
+  recalc();
+</script>
+</body>
+</html>
