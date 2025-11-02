@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anagramas con resaltado y letras restantes</title>
+<title>Anagramas con letras agrupadas</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
@@ -19,10 +19,10 @@
   .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   .btn:hover{border-color:var(--accent)}
 
-  .letters{display:flex;flex-wrap:wrap;gap:6px;font-family:monospace;font-size:20px;margin-top:6px}
+  .letter-group{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;font-family:monospace;font-size:22px;margin:4px 0}
   .vocal{color:#6ab0ff}
   .cons{color:#ffb74d}
-  .sep{opacity:.4;margin:0 8px}
+  .letters-block{display:flex;flex-direction:column;align-items:center;margin-top:8px}
 
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:13px}
   .chip{background:var(--tile);border:1px solid var(--grid);padding:6px 10px;border-radius:999px}
@@ -32,7 +32,7 @@
   .progress{height:10px;background:#0b1118;border:1px solid var(--grid);border-radius:999px;overflow:hidden;margin-top:10px}
   .bar{height:100%;background:var(--accent);width:0%}
 
-  /* Editor con overlay para colorear carácter a carácter */
+  /* Overlay del editor */
   .editor-wrap{position:relative}
   .highlight, .editor{
     font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
@@ -41,29 +41,34 @@
     background:var(--tile); min-height:110px;
   }
   .highlight{color:transparent; pointer-events:none}
-  .editor{ position:absolute; inset:0; background:transparent; color:transparent; caret-color:#e6eef7; outline:none; resize:vertical; }
-  .hl-ok{color:#9be7b0} .hl-warn{color:#ffd79a} .hl-bad{color:#ff9a9a} .hl-neutral{color:#7f93a6}
+  .editor{position:absolute;inset:0;background:transparent;color:transparent;caret-color:#e6eef7;outline:none;resize:vertical;}
+  .hl-ok{color:#9be7b0}
+  .hl-warn{color:#ffd79a}
+  .hl-bad{color:#ff9a9a}
+  .hl-neutral{color:#7f93a6}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Anagramas con resaltado y letras restantes</h1>
+  <h1>Anagramas con letras agrupadas</h1>
 
   <div class="section">
-    <div class="label">Nombre base (se usan exactamente estas letras)</div>
+    <div class="label">Nombre base</div>
     <textarea id="base" rows="2" class="highlight" style="position:static;color:#e6eef7;background:var(--tile)"></textarea>
     <div class="row" style="margin-top:8px">
       <button class="btn" id="prefill">Cargar ejemplo (JUAN ARAGO OLAGUIBEL)</button>
     </div>
 
-    <div class="label" style="margin-top:10px">Letras restantes (vocales ｜ consonantes):</div>
-    <div class="letters" id="lettersRemaining"></div>
-    <div class="label" style="margin-top:6px">Letras originales (para referencia):</div>
-    <div class="letters" id="lettersOriginal"></div>
+    <div class="letters-block">
+      <div class="label">Vocales disponibles:</div>
+      <div id="vocales" class="letter-group"></div>
+      <div class="label" style="margin-top:6px">Consonantes disponibles:</div>
+      <div id="consonantes" class="letter-group"></div>
+    </div>
   </div>
 
   <div class="section">
-    <div class="label">Frase candidata (escribe abajo; colores en vivo)</div>
+    <div class="label">Frase candidata</div>
     <div class="editor-wrap">
       <div id="highlight" class="highlight"></div>
       <textarea id="editor" class="editor" placeholder="Escribe tu frase… (p. ej., LUNA JAGUAR)"></textarea>
@@ -75,123 +80,97 @@
 </div>
 
 <script>
-  const vowels = new Set(['a','e','i','o','u']);
-  const baseEl = document.getElementById('base');
-  const prefillBtn = document.getElementById('prefill');
-  const lettersRemainingEl = document.getElementById('lettersRemaining');
-  const lettersOriginalEl  = document.getElementById('lettersOriginal');
+const vowels = new Set(['a','e','i','o','u']);
+const baseEl = document.getElementById('base');
+const prefillBtn = document.getElementById('prefill');
+const vocalesEl = document.getElementById('vocales');
+const consonantesEl = document.getElementById('consonantes');
+const editor = document.getElementById('editor');
+const highlight = document.getElementById('highlight');
+const bar = document.getElementById('bar');
+const status = document.getElementById('status');
 
-  const editor = document.getElementById('editor');
-  const highlight = document.getElementById('highlight');
-  const bar = document.getElementById('bar');
-  const status = document.getElementById('status');
+const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
-  const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-
-  function normalize(str){
-    return str.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/ñ/g,'n');
+function normalize(str){
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/ñ/g,'n');
+}
+function lettersOnly(str){ return normalize(str).replace(/[^a-z]/g,''); }
+function countMap(str){
+  const m={}; for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;
+  return m;
+}
+function renderGroups(baseCounts, phraseCounts){
+  const remaining={};
+  for(const [ch,need] of Object.entries(baseCounts)){
+    const used=Math.min(need,phraseCounts[ch]||0);
+    remaining[ch]=Math.max(0,need-used);
   }
-  function lettersOnly(str){ return normalize(str).replace(/[^a-z]/g,''); }
-
-  function countMap(str){
-    const m = {};
-    for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;
-    return m;
+  const voc=[],cons=[];
+  for(const [ch,count] of Object.entries(remaining)){
+    for(let i=0;i<count;i++){
+      (vowels.has(ch)?voc:cons).push(ch);
+    }
   }
+  voc.sort(); cons.sort();
+  vocalesEl.innerHTML = voc.map(l=>`<span class="vocal">${l.toUpperCase()}</span>`).join('');
+  consonantesEl.innerHTML = cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
+}
 
-  function renderLetters(container, counts, title=''){
-    const arr = [];
-    for(const [k,v] of Object.entries(counts)) for(let i=0;i<v;i++) arr.push(k);
-    arr.sort();
-    const voc = arr.filter(c=>vowels.has(c));
-    const cons= arr.filter(c=>!vowels.has(c));
-    container.innerHTML='';
-    const addRun=(chars,cls)=>{
-      for(const ch of chars){
-        const span=document.createElement('span');
-        span.className=cls; span.textContent=ch.toUpperCase();
-        container.appendChild(span);
-      }
-    };
-    addRun(voc,'vocal');
-    const sep=document.createElement('span'); sep.textContent='｜'; sep.className='sep';
-    container.appendChild(sep);
-    addRun(cons,'cons');
+function renderHighlight(){
+  const baseCounts=countMap(baseEl.value);
+  const phraseCounts=countMap(editor.value);
+
+  const used={};
+  let out='';
+  for(const raw of editor.value){
+    const n=normalize(raw);
+    if(!/^[a-z]$/.test(n)){out+=`<span class="hl-neutral">${esc(raw)}</span>`;continue;}
+    const need=baseCounts[n]||0;
+    const have=used[n]||0;
+    if(!need){out+=`<span class="hl-bad">${esc(raw)}</span>`;}
+    else if(have<need){used[n]=have+1;out+=`<span class="hl-ok">${esc(raw)}</span>`;}
+    else{out+=`<span class="hl-warn">${esc(raw)}</span>`;}
   }
+  highlight.innerHTML=out;
 
-  function computeRemaining(baseCounts, phraseCounts){
-    const rem = {};
-    for(const [ch,need] of Object.entries(baseCounts)){
-      const used = Math.min(need, phraseCounts[ch]||0);
-      rem[ch] = Math.max(0, need - used);
-    }
-    return rem;
+  // progreso
+  const totalBase=Object.values(baseCounts).reduce((a,b)=>a+b,0);
+  let usedCount=0;
+  const missing=[],over=[],notIn=[];
+  for(const [ch,need] of Object.entries(baseCounts)){
+    const have=phraseCounts[ch]||0;
+    usedCount+=Math.min(need,have);
+    if(have<need) missing.push(`${ch.toUpperCase()}×${need-have}`);
   }
-
-  function renderHighlight(){
-    const baseCounts = countMap(baseEl.value);
-    const phraseCounts = countMap(editor.value);
-
-    // Overlay por carácter
-    const used = {};
-    let out='';
-    for(const raw of editor.value){
-      const n = normalize(raw);
-      if(!/^[a-z]$/.test(n)){ out += `<span class="hl-neutral">${esc(raw)}</span>`; continue; }
-      const need = baseCounts[n]||0;
-      const have = used[n]||0;
-      if(!need){ out += `<span class="hl-bad">${esc(raw)}</span>`; }
-      else if(have < need){ used[n]=have+1; out += `<span class="hl-ok">${esc(raw)}</span>`; }
-      else{ out += `<span class="hl-warn">${esc(raw)}</span>`; }
-    }
-    highlight.innerHTML = out;
-
-    // Resumen
-    const totalBase = Object.values(baseCounts).reduce((a,b)=>a+b,0);
-    let usedCount = 0;
-    const missing=[], over=[], notIn=[];
-    for(const [ch,need] of Object.entries(baseCounts)){
-      const have = phraseCounts[ch]||0;
-      usedCount += Math.min(need, have);
-      if(have < need) missing.push(`${ch.toUpperCase()}×${need-have}`);
-    }
-    for(const [ch,have] of Object.entries(phraseCounts)){
-      const need = baseCounts[ch]||0;
-      if(need===0) notIn.push(`${ch.toUpperCase()}×${have}`);
-      else if(have>need) over.push(`${ch.toUpperCase()}×${have-need}`);
-    }
-    const pct = totalBase ? Math.round(usedCount/totalBase*100) : 0;
-    bar.style.width = pct+'%';
-
-    status.innerHTML='';
-    if(missing.length) status.innerHTML += `<span class="chip warn">Faltan ${missing.join(', ')}</span>`;
-    if(over.length) status.innerHTML += `<span class="chip bad">De más ${over.join(', ')}</span>`;
-    if(notIn.length) status.innerHTML += `<span class="chip bad">No permitidas ${notIn.join(', ')}</span>`;
-    if(!missing.length && !over.length && !notIn.length && lettersOnly(editor.value).length===totalBase){
-      status.innerHTML = `<span class="chip ok">¡Anagrama perfecto!</span>`;
-    }
-
-    // 🔥 Mostrar letras RESTANTES en tiempo real
-    const remainingCounts = computeRemaining(baseCounts, phraseCounts);
-    renderLetters(lettersRemainingEl, remainingCounts);
-    // Y las originales como referencia fija
-    renderLetters(lettersOriginalEl, baseCounts);
+  for(const [ch,have] of Object.entries(phraseCounts)){
+    const need=baseCounts[ch]||0;
+    if(need===0) notIn.push(`${ch.toUpperCase()}×${have}`);
+    else if(have>need) over.push(`${ch.toUpperCase()}×${have-need}`);
   }
+  const pct=totalBase?Math.round(usedCount/totalBase*100):0;
+  bar.style.width=pct+'%';
+  status.innerHTML='';
+  if(missing.length) status.innerHTML+=`<span class="chip warn">Faltan ${missing.join(', ')}</span>`;
+  if(over.length) status.innerHTML+=`<span class="chip bad">De más ${over.join(', ')}</span>`;
+  if(notIn.length) status.innerHTML+=`<span class="chip bad">No permitidas ${notIn.join(', ')}</span>`;
+  if(!missing.length&&!over.length&&!notIn.length&&lettersOnly(editor.value).length===totalBase)
+    status.innerHTML=`<span class="chip ok">¡Anagrama perfecto!</span>`;
 
-  // Eventos
-  baseEl.addEventListener('input', renderHighlight);
-  editor.addEventListener('input', renderHighlight);
-  prefillBtn.addEventListener('click', ()=>{
-    baseEl.value = 'JUAN ARAGO OLAGUIBEL';
-    editor.value = '';
-    renderHighlight();
-  });
+  renderGroups(baseCounts,phraseCounts);
+}
 
-  // Inicial
+baseEl.addEventListener('input',renderHighlight);
+editor.addEventListener('input',renderHighlight);
+prefillBtn.addEventListener('click',()=>{
   baseEl.value='JUAN ARAGO OLAGUIBEL';
+  editor.value='';
   renderHighlight();
+});
+baseEl.value='JUAN ARAGO OLAGUIBEL';
+renderHighlight();
 </script>
 </body>
 </html>
