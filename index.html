@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anagramas con letras agrupadas</title>
+<title>Anagramas limpio – letras agrupadas</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --muted:#9fb3c9; --tile:#0e1520;
@@ -14,8 +14,7 @@
   .wrap{max-width:980px;margin:0 auto;padding:18px}
   h1{font-size:20px;margin:0 0 10px}
   .section{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:14px;margin-top:14px}
-  .label{font-size:13px;color:var(--muted);margin-bottom:6px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
   .btn{background:var(--tile);border:1px solid var(--grid);color:#e6eef7;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   .btn:hover{border-color:var(--accent)}
 
@@ -50,25 +49,21 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Anagramas con letras agrupadas</h1>
+  <h1>Anagramas limpio – letras agrupadas</h1>
 
   <div class="section">
-    <div class="label">Nombre base</div>
     <textarea id="base" rows="2" class="highlight" style="position:static;color:#e6eef7;background:var(--tile)"></textarea>
-    <div class="row" style="margin-top:8px">
+    <div class="row">
       <button class="btn" id="prefill">Cargar ejemplo (JUAN ARAGO OLAGUIBEL)</button>
     </div>
 
     <div class="letters-block">
-      <div class="label">Vocales disponibles:</div>
       <div id="vocales" class="letter-group"></div>
-      <div class="label" style="margin-top:6px">Consonantes disponibles:</div>
       <div id="consonantes" class="letter-group"></div>
     </div>
   </div>
 
   <div class="section">
-    <div class="label">Frase candidata</div>
     <div class="editor-wrap">
       <div id="highlight" class="highlight"></div>
       <textarea id="editor" class="editor" placeholder="Escribe tu frase… (p. ej., LUNA JAGUAR)"></textarea>
@@ -91,18 +86,11 @@ const bar = document.getElementById('bar');
 const status = document.getElementById('status');
 
 const esc = s => s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+function normalize(str){return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/g,'n');}
+function lettersOnly(str){return normalize(str).replace(/[^a-z]/g,'');}
+function countMap(str){const m={};for(const ch of lettersOnly(str))m[ch]=(m[ch]||0)+1;return m;}
 
-function normalize(str){
-  return str.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/ñ/g,'n');
-}
-function lettersOnly(str){ return normalize(str).replace(/[^a-z]/g,''); }
-function countMap(str){
-  const m={}; for(const ch of lettersOnly(str)) m[ch]=(m[ch]||0)+1;
-  return m;
-}
-function renderGroups(baseCounts, phraseCounts){
+function renderGroups(baseCounts,phraseCounts){
   const remaining={};
   for(const [ch,need] of Object.entries(baseCounts)){
     const used=Math.min(need,phraseCounts[ch]||0);
@@ -110,39 +98,31 @@ function renderGroups(baseCounts, phraseCounts){
   }
   const voc=[],cons=[];
   for(const [ch,count] of Object.entries(remaining)){
-    for(let i=0;i<count;i++){
-      (vowels.has(ch)?voc:cons).push(ch);
-    }
+    for(let i=0;i<count;i++)(vowels.has(ch)?voc:cons).push(ch);
   }
   voc.sort(); cons.sort();
-  vocalesEl.innerHTML = voc.map(l=>`<span class="vocal">${l.toUpperCase()}</span>`).join('');
-  consonantesEl.innerHTML = cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
+  vocalesEl.innerHTML=voc.map(l=>`<span class="vocal">${l.toUpperCase()}</span>`).join('');
+  consonantesEl.innerHTML=cons.map(l=>`<span class="cons">${l.toUpperCase()}</span>`).join('');
 }
 
 function renderHighlight(){
   const baseCounts=countMap(baseEl.value);
   const phraseCounts=countMap(editor.value);
-
-  const used={};
-  let out='';
+  const used={}; let out='';
   for(const raw of editor.value){
     const n=normalize(raw);
     if(!/^[a-z]$/.test(n)){out+=`<span class="hl-neutral">${esc(raw)}</span>`;continue;}
-    const need=baseCounts[n]||0;
-    const have=used[n]||0;
+    const need=baseCounts[n]||0; const have=used[n]||0;
     if(!need){out+=`<span class="hl-bad">${esc(raw)}</span>`;}
     else if(have<need){used[n]=have+1;out+=`<span class="hl-ok">${esc(raw)}</span>`;}
     else{out+=`<span class="hl-warn">${esc(raw)}</span>`;}
   }
   highlight.innerHTML=out;
 
-  // progreso
   const totalBase=Object.values(baseCounts).reduce((a,b)=>a+b,0);
-  let usedCount=0;
-  const missing=[],over=[],notIn=[];
+  let usedCount=0; const missing=[],over=[],notIn=[];
   for(const [ch,need] of Object.entries(baseCounts)){
-    const have=phraseCounts[ch]||0;
-    usedCount+=Math.min(need,have);
+    const have=phraseCounts[ch]||0; usedCount+=Math.min(need,have);
     if(have<need) missing.push(`${ch.toUpperCase()}×${need-have}`);
   }
   for(const [ch,have] of Object.entries(phraseCounts)){
@@ -153,22 +133,17 @@ function renderHighlight(){
   const pct=totalBase?Math.round(usedCount/totalBase*100):0;
   bar.style.width=pct+'%';
   status.innerHTML='';
-  if(missing.length) status.innerHTML+=`<span class="chip warn">Faltan ${missing.join(', ')}</span>`;
-  if(over.length) status.innerHTML+=`<span class="chip bad">De más ${over.join(', ')}</span>`;
-  if(notIn.length) status.innerHTML+=`<span class="chip bad">No permitidas ${notIn.join(', ')}</span>`;
+  if(missing.length)status.innerHTML+=`<span class="chip warn">Faltan ${missing.join(', ')}</span>`;
+  if(over.length)status.innerHTML+=`<span class="chip bad">De más ${over.join(', ')}</span>`;
+  if(notIn.length)status.innerHTML+=`<span class="chip bad">No permitidas ${notIn.join(', ')}</span>`;
   if(!missing.length&&!over.length&&!notIn.length&&lettersOnly(editor.value).length===totalBase)
     status.innerHTML=`<span class="chip ok">¡Anagrama perfecto!</span>`;
-
   renderGroups(baseCounts,phraseCounts);
 }
 
 baseEl.addEventListener('input',renderHighlight);
 editor.addEventListener('input',renderHighlight);
-prefillBtn.addEventListener('click',()=>{
-  baseEl.value='JUAN ARAGO OLAGUIBEL';
-  editor.value='';
-  renderHighlight();
-});
+prefillBtn.addEventListener('click',()=>{baseEl.value='JUAN ARAGO OLAGUIBEL';editor.value='';renderHighlight();});
 baseEl.value='JUAN ARAGO OLAGUIBEL';
 renderHighlight();
 </script>
